@@ -1,0 +1,222 @@
+
+accumulate lp-lib.
+accumulate coq-lib.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Utilities %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% max X Y Z
+%      i i o
+type max int -> int -> int -> prop.
+max X Y Y :-
+    X < Y.
+max X Y X :-
+    not (X < Y).
+
+%% same-root X Y
+%            i i
+% Resolves only if the two terms are application of the same function/constructor
+type same-root term -> term -> prop.
+same-root X X.
+same-root X (app [Y|_]) :- same-root X Y.
+same-root (app [X|_]) Y :- same-root X Y.
+
+%% do-apply T Params Out
+%           i i      o
+% Do the beta reduction of app [T|Params] (only on Params, does not beta reduce
+% T)
+type do-apply term -> list term -> term -> prop.
+do-apply (lam _ _ Bo) [T|Ts] Out :-
+    do-apply (Bo T) Ts Out.
+do-apply (prod _ _ Bo) [T|Ts] Out :-
+    do-apply (Bo T) Ts Out.
+do-apply Out [] Out.
+
+%% flip Prop Out
+%       i    o
+% Same as Haskell's flip but for propositions
+type flip (A -> B -> C -> prop) -> B -> A -> C -> prop.
+flip F B A C :-
+    F A B C.
+
+%% mconst X Y Z
+%         i i o
+% (mconst j) is the proposition constant to j
+type mconst A -> B -> A -> prop.
+mconst X _ X.
+
+%% repeat N X L
+%         i i o
+% Output the list of X repeated N times
+repeat 0 X [].
+repeat N X [X|L] :-
+    N1 is N - 1,
+    repeat N1 X L.
+
+repeat-test :-
+    (pi a\ repeat 42 a (Out a)),
+    coq-say Out.
+
+%% uncons-last L L' Last
+%              i o  o
+type uncons-last list A -> list A -> A -> prop.
+uncons-last [] _ _ :-
+    fatal-error "uncons-last used on empty list".
+uncons-last L L' Last :-
+    uncons-last-acc L [] L' Last.
+uncons-last-acc [X] Acc L' X :-
+    rev Acc L'.
+uncons-last-acc [X|L] Acc L' Last :-
+    uncons-last-acc L [X|Acc] L' Last.
+
+%% unapply In (pr UnApp Arg)
+%          i  o
+% unapply takes an application and remove its last argument, returning it :
+%   unapply In UnApp Arg => In =_\beta app [UnApp,Arg]
+type unapply term -> pair term term -> prop.
+unapply (app [X]) Out :-
+    unapply X Out.
+unapply (app [X,Y]) (pr X Y).
+unapply (app [X|L]) (pr (app [X|L']) Arg) :-
+    uncons-last L L' Arg.
+
+%% split-app App (pr Fun Args)
+%            i   o
+% Takes applications (potentially nested) and identify the function and its
+% list of arguments
+split-app (app [X|L]) (pr Fun Args) :-
+    split-app X (pr Fun Args'),
+    append Args' L Args.
+split-app X (pr X []).
+
+%% get-type-information Tp Params Luno TY LC LT
+%                       i  i      o    o  o  o
+%   Tp     : a coq type potentially partially applied
+%   Params : parameters for Tp
+%   Luno   : number of uniform parameters
+%   TY     : the type of app [Tp|Params]
+%   LC     : the constructors of app [Tp|Params]
+%   LT     : their types
+get-type-information (app [X|Prs]) Params Luno TY LC LT :-
+    append Prs Params Params',
+    get-type-information X Params' Luno TY LC LT.
+get-type-information (indt GR) Params Luno TY LC LT :-
+    coq-env-indt GR tt _ Luno' TY' LC' LT',
+    do-apply TY' Params TY,
+    map LC' ((flip mk-app) Params) LC,
+    map LT' ((flip do-apply) Params) LT,
+    length Params L,
+    Luno'' is Luno' - L,
+    max Luno'' 0 Luno.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% API %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+type params  string -> int -> prop.
+type phi     string -> term -> list term -> term -> term -> prop.
+type doConst string -> term -> term -> term -> prop.
+type doLeaf  string -> term -> term -> term -> term -> prop.
+type doType  string -> term -> term -> term -> term -> term -> prop.
+type doCon   string -> term -> term -> term -> term -> term -> term -> prop.
+type doInl   string -> term -> term -> term -> term -> term -> prop.
+type doInr   string -> term -> term -> term -> term -> term -> prop.
+type doPair  string -> term -> term -> term -> term -> term -> term -> prop.
+type doUnit  string -> term -> term -> prop.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%% Generics instance %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% make-rep LT Out
+%           i  o
+%   LT   : the types of its constructors
+%   Out  : a type isomorph to Type expressed in terms of sums and products,
+%          where every instances of Type are structurally smaller
+make-rep [T|LT] (app [SumType, T1, T2]) :-
+    make-rep-prod T  T1,
+    make-rep      LT T2,
+    coq-locate    "SumType" SumType.
+make-rep [T] T' :-
+    make-rep-prod T T'.
+
+%% make-rep-prod T Out
+%                i o
+%   T    : the type of a constructor
+%   Out  : a type isomorph to the constructor expressed in terms of products
+make-rep-prod (lam N T Bo) Out :-
+    make-rep-prod (prod N T Bo) Out.
+make-rep-prod (prod _ T1 Bo) (app [ProdType, T1, T2]) :-
+    coq-locate "ProdType" ProdType,
+    (pi x\ make-rep-prod (Bo x) T2),
+    coq-locate "UnitType" UnitType,
+    not (T2 = UnitType).
+make-rep-prod (prod _ T1 Bo) T1.
+make-rep-prod _ UnitType :-
+    coq-locate "UnitType" UnitType.
+
+make-rep-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    get-type-information List [Nat] _ _ _ LT, !,
+    make-rep LT Out,
+    coq-say Out.
+
+%% make-f Type Out
+%         i    o
+make-f Type (lam "x" Type x\ (match x (lam "_" Type _\ hole) MTerms)) :-
+    split-app Type (pr Head Args),
+    length Args N,
+    get-type-information Type [] _ _ LC LT,
+    map2 LC LT (make-f-acc LC LT N []) MTerms.
+
+make-f-acc LC LT N Acc C (prod Nm T Bo) (lam Nm T Out) :-
+    pi x\ make-f-acc LC LT N [x|Acc] C (Bo x) (Out x).
+make-f-acc LC LT N Acc C (lam Nm  T Bo) (lam Nm T Out) :-
+    pi x\ make-f-acc LC LT N [x|Acc] C (Bo x) (Out x).
+make-f-acc LC LT N Acc' C _ Out :-
+    rev Acc' Acc,
+    make-f-for-constructor LC LT (app [C|Acc]) N Out.
+
+%% make-f-for-constructor LC LT X N Out
+%         i  i  i i o
+%   LC  : the constructors of the type we're working with
+%   LT  : their types
+%   X   : the term to abstract
+%   N   : the number of iapplied parameters of the type
+%   Out : X represented in (rep Type)
+make-f-for-constructor LC' LT X N Out :-
+    split-app X (pr C Args'),
+    drop N Args' Args,
+    map LC' split-app LC'',
+    map LC'' fst LC,
+    make-f-sum LC LT C Args Out.
+
+make-f-sum [C|LC] [T|LT] C Args (app [{{MkSumL}}, T1, T2, Out]) :-
+    make-rep-prod T T1,
+    make-rep LT T2,
+    make-f-prod T Args Out.
+make-f-sum [C'|LC] [T|LT] C Args (app [{{MkSumR}}, T1, T2, Out]) :-
+    make-rep-prod T T1,
+    make-rep LT T2,
+    make-f-sum LC LT C Args Out.
+make-f-sum [C] [T] C Args Out :-
+    make-f-prod T Args Out.
+
+make-f-prod (lam N T Bo) Args Out :-
+    make-f-prod (prod N T Bo) Args Out.
+make-f-prod _ [X] X.
+make-f-prod (prod _ T1 Bo) [X|Args] (app [{{MkProd}}, T1, T2, X, Out]) :-
+    (pi x\ make-rep-prod (Bo x) T2),
+    pi x\ make-f-prod (Bo x) Args Out.
+make-f-prod _ [] {{MkUnit}}.
+
+make-f-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    make-f (app [List,Nat]) Out,
+    coq-say Out,
+    coq-elaborate Out Bo TBo,
+    coq-say TBo.
+
