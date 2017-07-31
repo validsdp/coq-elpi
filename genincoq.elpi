@@ -220,3 +220,133 @@ make-f-test :-
     coq-elaborate Out Bo TBo,
     coq-say TBo.
 
+%% make-g Type Out
+%         i    o
+make-g Type (lam "x" Rep Out) :-
+    get-type-information Type [] _ _ LC LT,
+    make-rep LT Rep,
+    pi x\ make-g-sum LC LT x (Out x).
+
+make-g-sum [C] [T] Rep Out :-
+    make-g-prod C T [] Rep Out.
+make-g-sum [C|LC] [T|LT] Rep
+        (match Rep (lam "_" (app [SumType, T1, T2]) _\ hole)
+            [ (lam "x" T1 HSumL)
+            , (lam "x" T2 HSumR)
+            ]) :-
+    coq-locate "SumType" SumType,
+    make-rep-prod T T1,
+    make-rep LT T2,
+    (pi x\ make-g-prod C T [] x (HSumL x)),
+    pi x\ make-g-sum LC LT x (HSumR x).
+
+make-g-prod C (lam N T Bo) Acc X Params :-
+    make-g-prod C (prod N T Bo) Acc X Params.
+make-g-prod C (prod _ T1 Bo) Acc X
+        (match X (lam "_"(app [ProdType, T1, T2]) _\ hole)
+            [ lam "x" T1 x\ lam "y" T2 y\ Out x y ]) :-
+    coq-locate "ProdType" ProdType,
+    (pi x\ make-rep-prod (Bo x) T2),
+    coq-locate "UnitType" UnitType,
+    not (T2 = UnitType),
+    pi x y\ make-g-prod C (Bo y) [x|Acc] y (Out x y).
+make-g-prod C (prod _ T _) Acc' X (app [C|Params]) :-
+    rev [X|Acc'] Params.
+make-g-prod C _ Acc' X (app [C|Params]) :-
+    rev Acc' Params.
+
+make-g-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    make-g (app [List,Nat]) Out,
+    coq-say Out,
+    coq-elaborate Out Bo TBo,
+    coq-say TBo.
+
+list-nat-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    make-f (app [List,Nat]) F,
+    coq-elaborate F OF TF,
+    coq-env-add-const "f_nat" OF TF _, !,
+    make-g (app [List,Nat]) G,
+    coq-elaborate G OG TG,
+    coq-env-add-const "g_nat" OG TG _.
+
+%% make-inj Type F G Out
+%           i    i i o
+make-inj Type F G (lam "x" Type x\ match x (lam "_" Type _\ hole) MTerms) :-
+    get-type-information Type [] _ _ _ LT,
+    map LT make-inj-projector MTerms.
+
+make-inj-projector (lam N T Bo) Out :-
+    make-inj-projector (prod N T Bo) Out.
+make-inj-projector (prod N T Bo) (lam N T Out) :-
+    pi x\ make-inj-projector (Bo x) (Out x).
+make-inj-projector _ {{eq_refl}}.
+
+make-inj-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    (pi f g\ make-inj (app [List, Nat]) f g (Inj f g)),
+    coq-say Inj.
+
+%% make-surj Type F G Out
+%            i    i i o
+make-surj Type F G (lam "x" Rep Out) :-
+    get-type-information Type [] _ _ _ LT,
+    make-rep LT Rep,
+    pi x\ make-surj-aux Rep x (Out x).
+
+make-surj-aux Rep X (match X (lam "_" Rep _\ hole)
+        [ lam "a" T1 ML
+        , lam "b" T2 MR
+        ]) :-
+    coq-locate "SumType" SumType,
+    split-app Rep (pr SumType [T1, T2]), !,
+    (pi x\ make-surj-aux T1 x (ML x)),
+    (pi x\ make-surj-aux T2 x (MR x)).
+make-surj-aux Rep X (match X (lam "_" Rep _\ hole)
+        [ lam "a" T1 a\ lam "b" T2 Out ] ) :-
+    coq-locate "ProdType" ProdType,
+    split-app Rep (pr ProdType [T1, T2]), !,
+    pi x\ make-surj-aux T2 x (Out x).
+make-surj-aux UnitType X (match X (lam "_" UnitType _\ hole) [ {{eq_refl}} ]) :-
+    coq-locate "UnitType" UnitType.
+make-surj-aux _ _ {{eq_refl}}.
+
+make-surj-test :-
+    coq-locate "list" List,
+    coq-locate "nat"  Nat,
+    (pi f g\ make-surj (app [List, Nat]) f g (Surj f g)),
+    coq-say Surj.
+
+%% derive-generics Name
+%                  i
+derive-generics Name :-
+    coq-locate Name Type,
+    get-type-information Type [] _ TY _ _,
+    derive-generics-acc Name Type [] TY CS,
+    coq-elaborate CS Bo TBo,
+    NOut is Name ^ "_generics",
+    coq-env-add-const NOut Bo TBo GOut,
+    GOut = const GR,
+    coq-CS-declare-instance GR.
+
+derive-generics-acc Name Type Params (prod N T Bo) Out :-
+    derive-generics-acc Name Type Params (lam N T Bo) Out.
+derive-generics-acc Name Type Params (lam N T Bo) (lam N T Out) :-
+    pi x\ derive-generics-acc Name Type [x|Params] (Bo x) (Out x).
+derive-generics-acc Name Type Params' _ 
+        (app [{{Generics.Pack}}, app [Type|Params],
+            app [{{Generics.Class}}, Rep, F, G, Inj, Surj]
+        ])
+        :-
+    rev Params' Params,
+    get-type-information Type Params _ _ _ LT,
+    make-rep LT Rep,
+    make-f (app [Type|Params]) F,
+    make-g (app [Type|Params]) G,
+    make-inj (app [Type|Params]) F G Inj,
+    make-surj (app [Type|Params]) F G Surj.
+
