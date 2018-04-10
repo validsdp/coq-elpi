@@ -27,10 +27,13 @@ let assert_command state name =
   if not (command_mode state) then
     err Pp.(str("API " ^ name ^ " is not available in tactics"))
 
+let u_eq x y = Universes.UEq(x,y)
+let u_le x y = Universes.ULe(x,y)
+
 let add_universe_constraint csts u1 x u2 =
   let open Universes in
   let u1, u2 = univout u1, univout u2 in
-  try add_constraints csts (Constraints.singleton (u1,x,u2))
+  try add_constraints csts (Constraints.singleton (x u1 u2))
   with
   | Univ.UniverseInconsistency p ->
       Feedback.msg_debug
@@ -57,7 +60,7 @@ let purge_algebraic_univs csts t =
     match Constr.kind t with
     | Constr.Sort (Sorts.Type u) when not (Univ.Universe.is_level u) ->
         let new_csts, v = mk_fresh_univ !csts in
-        csts := add_universe_constraint new_csts (univin u) Universes.ULe v;
+        csts := add_universe_constraint new_csts (univin u) u_le v;
         Constr.mkSort (Sorts.Type (univout v))
     | _ -> Constr.map aux t in
   let t = aux t in
@@ -70,15 +73,15 @@ let univ_super csts u =
     if Univ.Universe.is_level x then csts, u
     else 
       let csts, w = mk_fresh_univ csts in
-      add_universe_constraint csts u Universes.ULe w, w in
+      add_universe_constraint csts u u_le w, w in
   let csts =
-    add_universe_constraint csts (mk_algebraic_super u) Universes.ULe v in
+    add_universe_constraint csts (mk_algebraic_super u) u_le v in
   csts, v
 
 let univ_max csts u1 u2 =
   let csts, v = mk_fresh_univ csts in
   let csts =
-    add_universe_constraint csts (mk_algebraic_max u1 u2) Universes.ULe v in
+    add_universe_constraint csts (mk_algebraic_max u1 u2) u_le v in
   csts, v
 
 let constr2lp ?proof_ctx csts depth t =
@@ -575,7 +578,7 @@ let () = List.iter declare_api [
         let hint_priority = Some (E.C.to_int priority) in
         let qualid =
           Nametab.shortest_qualid_of_global Names.Id.Set.empty reference in
-        Classes.existing_instance global (Libnames.Qualid (None, qualid))
+        Classes.existing_instance global (CAst.make (Libnames.Qualid qualid))
           (Some { Hints.empty_hint_info with Vernacexpr.hint_priority });
         [], cc
     | _ -> error ());
@@ -697,14 +700,14 @@ let () = List.iter declare_api [
     let csts, assignments, args = to_univ 2 csts [] [] args in
     match args with
     | [E.CData u1;E.CData u2] when isuniv u1 && isuniv u2 ->
-      assignments, add_universe_constraint csts u1 Universes.ULe u2
+      assignments, add_universe_constraint csts u1 u_le u2
     | _ -> error ());
   "univ-eq", Constraints (fun ~depth ~error ~kind ~pp csts args ->
     let error = error.error 2 "@univ @univ" in
     let csts, assignments, args = to_univ 2 csts [] [] args in
     match args with
     | [E.CData u1;E.CData u2] when isuniv u1 && isuniv u2 ->
-      assignments, add_universe_constraint csts u1 Universes.UEq u2
+      assignments, add_universe_constraint csts u1 u_eq u2
     | _ -> error ());
   "univ-new", Constraints (fun ~depth ~error ~kind ~pp csts args ->
     let error = error.error 2 "(list string) out" in

@@ -438,7 +438,7 @@ let new_univ state =
   CS.update_return engine state (fun ({ evd } as x) ->
     let evd, v = Evd.new_univ_level_variable UState.UnivRigid evd in
     let u = Univ.Universe.make v in
-    let evd = Evd.add_universe_constraints evd (Universes.Constraints.singleton (Univ.type1_univ,Universes.ULe,u)) in
+    let evd = Evd.add_universe_constraints evd (Universes.Constraints.singleton (Universes.ULe(Univ.type1_univ,u))) in
     { x with evd }, u)
 
 let type_of_global state r = CS.update_return engine state (fun x ->
@@ -468,7 +468,7 @@ let evar_arity k state =
 
 let normalize_univs state = CS.update engine state (fun ({ evd } as x) ->
   let ctx = Evd.evar_universe_context evd in
-  let ctx = Evd.normalize_evar_universe_context ctx in
+  let ctx = UState.minimize ctx in
   { x with evd = Evd.set_universe_context evd ctx })
 
 let restrict_univs state u = CS.update engine state (fun ({ evd } as x) ->
