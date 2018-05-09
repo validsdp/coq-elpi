@@ -1077,23 +1077,19 @@ let lp2inductive_entry ~depth state t =
           Univ.LSet.union acc (Univops.universes_of_constr env t))
         used params in
 
-(*
     let () =
       let uc = Evd.evar_universe_context evd in
       let uc = Termops.pr_evar_universe_context uc in
       Feedback.msg_info uc in
     let () =
       Feedback.msg_info (Univ.LSet.pr Univ.Level.pr used) in
-*)
 
-(*     let evd = Evd.restrict_universe_context evd used in *)
+    let evd = Evd.restrict_universe_context evd used in
 
-(*
     let () =
       let uc = Evd.evar_universe_context evd in
       let uc = Termops.pr_evar_universe_context uc in
       Feedback.msg_info uc in
-*)
     
     let oe = {
       mind_entry_typename = itname;
