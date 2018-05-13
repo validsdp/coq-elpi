@@ -1086,7 +1086,7 @@ let lp2inductive_entry ~depth state t =
       Feedback.msg_info (Univ.LSet.pr Univ.Level.pr used) in
 *)
 
-(*     let evd = Evd.restrict_universe_context evd used in *)
+    let evd = Evd.restrict_universe_context evd used in
 
 (*
     let () =

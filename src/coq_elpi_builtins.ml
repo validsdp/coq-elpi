@@ -469,7 +469,7 @@ let coq_builtins =
        let env, evd = get_env_evd csts in
        let ty = EConstr.to_constr evd ty in
        let used = Univops.universes_of_constr env ty in
-(*        let evd = Evd.restrict_universe_context evd used in *)
+       let evd = Evd.restrict_universe_context evd used in
        let dk = Decl_kinds.(Global, false, Logical) in
        let gr, _, _ =
          ComAssumption.declare_assumption false dk
@@ -494,7 +494,7 @@ let coq_builtins =
          (Option.default Univ.LSet.empty
            (Option.map (Univops.universes_of_constr env) ty)) 
          (Univops.universes_of_constr env bo) in
-(*        let evd = Evd.restrict_universe_context evd used in *)
+       let evd = Evd.restrict_universe_context evd used in
        let ce = Entries.({
          const_entry_opaque = opaque = Given true;
          const_entry_body = Future.from_val
