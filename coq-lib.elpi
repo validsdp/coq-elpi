@@ -21,6 +21,7 @@ debug-print Msg Data :- !, M is "elpi: " ^ Msg, coq.say M Data.
 pred  subst-prod i:list term, i:term, o:term.
 subst-prod [] P P :- !.
 subst-prod [X|XS] (prod _ _ F) P :- !, subst-prod XS (F X) P.
+subst-prod XS (let _ _ X F) P :- !, subst-prod XS (F X) P.
 :name "subst-prod:fail"
 subst-prod [_|_] T _ :- !,
   fatal-error-w-data T "subst-prod: not a product".
@@ -28,20 +29,24 @@ subst-prod [_|_] T _ :- !,
 pred subst-lam i:list term, i:term, o:term.
 subst-lam [] T T :- !.
 subst-lam [X|XS] (lam _ _ F) T :- !, subst-lam XS (F X) T.
+subst-lam XS (let _ _ X F) T :- !, subst-lam XS (F X) T.
 :name "subst-lam:fail"
 subst-lam [_|_] T _ :- !, 
   fatal-error-w-data T "subst-lam: not a lambda".
 
 pred prod-R-lam o:term, o:term.
 prod-R-lam (prod N T F) (lam N T R) :- !, pi x\ prod-R-lam (F x) (R x).
+prod-R-lam (let N T B F) (let N T B R) :- !, pi x\ prod-R-lam (F x) (R x).
 prod-R-lam X X.
 
 pred prod->lam i:term, o:term.
 prod->lam (prod N T F) (lam N T R) :- !, pi x\ prod->lam (F x) (R x).
+prod->lam (let N T B F) (let N T B R) :- !, pi x\ prod->lam (F x) (R x).
 prod->lam X X.
 
 pred count-prods i:term, o:int.
 count-prods (prod _ _ B) N :- !, (pi x\ count-prods (B x) M), N is M + 1.
+count-prods (let _ _ _ B) N :- !, (pi x\ count-prods (B x) N).
 :name "count-prod:end"
 count-prods _ 0 :- !.
 
@@ -209,6 +214,8 @@ pred map-under-lam i:term,
 map-under-lam T F R :- map-under-lam-aux T [] [] F R.
 map-under-lam-aux (lam N T B) AccT AccTy F (lam N T R) :- !,
   pi x\ decl x N T => map-under-lam-aux (B x) [x|AccT] [T|AccTy] F (R x).
+map-under-lam-aux (let _ _ X B) AccT AccTy F R :- !,
+  map-under-lam-aux (B X) AccT AccTy F R.
 map-under-lam-aux End AccT AccTy F R :- F End {rev AccT} {rev AccTy} R.
 
 pred iter-under-lam i:term,
@@ -217,6 +224,8 @@ pred iter-under-lam i:term,
 iter-under-lam T F :- iter-under-lam-aux T [] [] F.
 iter-under-lam-aux (lam N T B) AccT AccTy F :- !,
   pi x\ decl x N T => iter-under-lam-aux (B x) [x|AccT] [T|AccTy] F.
+iter-under-lam-aux (let _ _ X B) AccT AccTy F :- !,
+  iter-under-lam-aux (B X) AccT AccTy F.
 iter-under-lam-aux End AccT AccTy F :- F End {rev AccT} {rev AccTy}.
 
 % Build a match given the term and function to build the return type and the
@@ -251,6 +260,8 @@ pred bind-ind-arity % calls K under (fun Arity (x : Ity Arity) =>..)
   o:term. % 
 bind-ind-arity-aux (prod N T B) (lam N T F) AccT AccTy IT K :- !,
   pi x\ decl x N T => bind-ind-arity-aux (B x) (F x) [x|AccT] [T|AccTy] IT K.
+bind-ind-arity-aux (let _ _ X B) F AccT AccTy IT K :- !,
+  bind-ind-arity-aux (B X) F AccT AccTy IT K.
 bind-ind-arity-aux (sort _ as Sort) (lam `i` ITy F) AccT AccTy IT K :-
   rev AccT Vars,
   mk-app IT Vars ITy,

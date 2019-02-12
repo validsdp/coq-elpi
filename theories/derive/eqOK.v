@@ -3,7 +3,7 @@
    license: GNU Lesser General Public License Version 2.1 or later           
    ------------------------------------------------------------------------- *)
 
-From elpi Require Import elpi derive.param1 derive.param1P derive.eqK derive.eqcorrect.
+From elpi Require Export elpi derive.param1 derive.param1P derive.eqK derive.eqcorrect.
 
 Elpi Command derive.eqOK.
 
@@ -17,7 +17,7 @@ Elpi Accumulate File "derive/eqOK.elpi".
 Elpi Accumulate "
   main [str I, str O] :- !, coq.locate I T, derive.eqOK.main T O _.
   main [str I] :- !,
-    coq.locate I T, term->gr T GR, Name is {coq.gr->id GR} ^ ""_OK"",
+    coq.locate I T, term->gr T GR, Name is {coq.gr->id GR} ^ ""_eq_OK"",
     derive.eqOK.main T Name _.
   main _ :- usage.
 
