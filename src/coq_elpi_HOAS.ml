@@ -424,6 +424,7 @@ let constr2lp (proof_ctx, proof_ctx_len) ~depth state t =
     | C.Fix _ -> nYI "HOAS for mutual fix"
     | C.CoFix _ -> nYI "HOAS for cofix"
     | C.Proj _ -> nYI "HOAS for primitive projections"
+    | C.Int _ -> nYI "HOAS for primitive machine integers"
   in
   if debug then
     Feedback.msg_debug Pp.(str"term2lp: depth=" ++ int depth ++
@@ -1215,7 +1216,8 @@ let lp2inductive_entry ~depth state t =
       mind_entry_params = params;
       mind_entry_inds = [oe];
       mind_entry_universes =
-            Monomorphic_ind_entry (Evd.universe_context_set evd);
+        Monomorphic_entry (Evd.universe_context_set evd);
+      mind_entry_variance = None;
       mind_entry_private = None; }
   in
   let rec aux_fields depth ind fields =
