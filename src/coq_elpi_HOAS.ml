@@ -458,7 +458,7 @@ let new_univ state =
     { x with evd }, u)
 
 let type_of_global state r = CS.update_return engine state (fun x ->
-  let ty, ctx = Global.type_of_global_in_context x.env r in
+  let ty, ctx = Typeops.type_of_global_in_context x.env r in
   let inst, ctx = UnivGen.fresh_instance_from ctx None in
   let ty = Vars.subst_instance_constr inst ty in
   let evd = Evd.merge_context_set Evd.univ_rigid x.evd ctx in
