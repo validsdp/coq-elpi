@@ -91,7 +91,7 @@ Elpi Command eq1 "
 
  derive-eq T R :-
    R = {{ fix f (n m : lp:T) {struct n} : bool :=
-            lp:Bo f n m }},
+            lp:(Bo f n m) }},
    Bo = f\ n\ m\ {{true}}.
 ".
 Elpi Typecheck.
@@ -110,7 +110,7 @@ Elpi Command eq2 "
 
  derive-eq T R :-
    R = {{ fix f (n m : lp:T) {struct n} : bool :=
-            lp:Bo f n m }},
+            lp:(Bo f n m) }},
    pi f n m\
      build-match n T
        derive-eq-rty
@@ -138,7 +138,7 @@ Elpi Command eq3 "
 
  derive-eq T R :-
    R = {{ fix f (n m : lp:T) {struct n} : bool :=
-            lp:Bo f n m }},
+            lp:(Bo f n m) }},
    pi f n m\
      build-match n T
        derive-eq-rty
@@ -174,7 +174,7 @@ Elpi Command eq4 "
 
  derive-eq T R :-
    R = {{ fix f (n m : lp:T) {struct n} : bool :=
-            lp:Bo f n m }},
+            lp:(Bo f n m) }},
    pi f n m\
      eq-db T f =>
      build-match n T
@@ -205,7 +205,7 @@ Elpi eq4 nat. Print nat_cmp4.
 (* Some commands shipped with coq-elpi *)
 
 From elpi Require Import
-  derive.map derive.eq derive.param1 derive.param1P derive.induction.
+  derive.map derive.eq derive.param1 derive.param1_functor derive.induction.
 
 Elpi derive.eq list.         About list_eq.
 Elpi derive.map list.        About list_map.
@@ -214,9 +214,8 @@ Inductive tree := Leaf | Node : list tree -> tree.
 
 About tree_ind.
 
-Elpi derive.param1 list is_.     About is_list. 
-Elpi derive.param1P is_list list_. 
-Elpi derive.map is_list.
+Elpi derive.param1 list is_.     About is_list.
+Elpi derive.param1.functor is_list.
 Elpi derive.param1 tree.
 Elpi derive.induction tree.           About tree_induction.
 

@@ -1,6 +1,6 @@
 From elpi Require Import derive.eqOK.
 
-From elpi Require Import test_derive_stdlib test_eqcorrect test_param1 test_param1P.
+From elpi Require Import test_derive_stdlib test_eqcorrect test_param1 test_param1_inhab test_param1_trivial.
 
 Import test_derive_stdlib.Coverage.
 Import tests.test_eq.Coverage.
@@ -17,8 +17,8 @@ Fail Elpi derive.eqOK nest.
 Fail Elpi derive.eqOK w.
 Fail Elpi derive.eqOK vect.
 Fail Elpi derive.eqOK dyn.
-Fail Elpi derive.eqOK zeta.
-Fail Elpi derive.eqOK beta.
+Elpi derive.eqOK zeta.
+Elpi derive.eqOK beta.
 Fail Elpi derive.eqOK iota.
 Elpi derive.eqOK large.
 End Coverage.
@@ -38,24 +38,24 @@ Fail Check nest_eq_OK.
 Fail Check w_eq_OK.
 Fail Check vect_eq_OK.
 Fail Check dyn_eq_OK.
-Fail Check zeta_eq_OK.
-Fail Check beta_eq_OK.
+Check zeta_eq_OK : forall A f, ok A f -> ok (zeta A) (zeta_eq A f).
+Check beta_eq_OK : forall A f, ok A f -> ok (beta A) (beta_eq A f).
 Fail Check iota_eq_OK.
 Check large_eq_OK : ok large large_eq.
 
 (* more tests *)
 
-From elpi Require Import test_map.
+From elpi Require Import test_param1_functor.
 
 Inductive dlist A := dnil | dcons (a : pair A peano) (l : dlist A).
 
 Elpi derive.param1 dlist.
-Elpi derive.param1P is_dlist.
+Elpi derive.param1.inhab is_dlist.
 Elpi derive.induction dlist.
 Elpi derive.projK dlist.
 Elpi derive.bcongr dlist.
 Elpi derive.isK dlist.
-Elpi derive.map is_dlist.
+Elpi derive.param1.functor is_dlist.
 Elpi derive.eq dlist.
 Elpi derive.eqK dlist. 
 Elpi derive.eqcorrect dlist.
